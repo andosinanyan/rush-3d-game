@@ -59,7 +59,7 @@ const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 function el(id){return document.getElementById(id)}
 
 // CONFIG
-const LW=2.2,LANES=[-LW,0,LW],SL=16,VS=12,BSPD=14,MSPD=36,GRAV=-40,JFORCE=15.5,SDUR=500,SINC=.18;
+const LW=2.2,LANES=[-LW,0,LW],SL=16,VS=12,BSPD=20,MSPD=48,GRAV=-40,JFORCE=15.5,SDUR=500,SINC=.18;
 
 // STATE
 let scene,cam,renderer,clock,gameRunning=false,score=0,coins=0,bestScore=0,speed=BSPD,playerLane=1;
@@ -86,7 +86,7 @@ function initMaterials(){
     x.fillStyle='rgba(80,58,35,.5)';x.fillRect(po+15,0,pw-30,h);
     for(let i=0;i<600;i++){const v=40+Math.random()*40;x.fillStyle=`rgba(${v+15},${v},${v-10},${.15+Math.random()*.2})`;x.fillRect(po+Math.random()*pw,Math.random()*h,1+Math.random()*3,1+Math.random()*2);}
   },512,512);
-  mG=new THREE.MeshStandardMaterial({map:gTex,roughness:.8});
+  mG=new THREE.MeshStandardMaterial({map:gTex,roughness:.8,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1});
   mBk=new THREE.MeshStandardMaterial({color:0x5a3a1a,roughness:.82});
   mLf=new THREE.MeshStandardMaterial({color:0x3d9a2e,roughness:.55,side:THREE.DoubleSide});
   mLd=new THREE.MeshStandardMaterial({color:0x2a7a18,roughness:.6,side:THREE.DoubleSide});
@@ -186,8 +186,8 @@ function crossFade(action,dur){if(!mixer||!action||currentAction===action)return
 // SEGMENTS - now placed in world space along current heading
 function makeSeg(wz){
   const g=new THREE.Group();
-  const gnd=new THREE.Mesh(new THREE.PlaneGeometry(30,SL+1),mG);
-  gnd.rotation.x=-Math.PI/2;gnd.position.y=-.02;gnd.receiveShadow=true;g.add(gnd);
+  const gnd=new THREE.Mesh(new THREE.PlaneGeometry(30,SL),mG);
+  gnd.rotation.x=-Math.PI/2;gnd.position.y=-.01;gnd.receiveShadow=true;g.add(gnd);
   // Trees
   for(let i=0;i<SL;i+=3+Math.random()*2){[-1,1].forEach(side=>{
     if(Math.random()>.2){const t=getTree();t.position.set(side*(5+Math.random()*3),0,-SL/2+i);g.add(t);}
@@ -328,7 +328,7 @@ async function init(){
     scene=new THREE.Scene();
     scene.background=new THREE.Color(0x6aafe6);
     scene.fog=new THREE.Fog(0x8ec8a0,20,120);
-    cam=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.5,200);cam.position.set(0,2.8,4.5);
+    cam=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,1,200);cam.position.set(0,2.8,4.5);
     const canvas=el('gameCanvas');
     renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance',alpha:false});
     renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
