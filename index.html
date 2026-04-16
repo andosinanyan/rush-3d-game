@@ -321,8 +321,9 @@ function update(dt){
   for(let i=obstacles.length-1;i>=0;i--){const o=obstacles[i];const oz=o.mesh.position.z,ox=o.mesh.position.x;const dzz=Math.abs(pz-oz),dxx=Math.abs(px-ox);if(dzz<.6&&dxx<.7&&py<(o.h||1)-.05){if(puShield){puShield=false;flash('rgba(100,255,150,.25)');showPopup('SHIELD!','#66ff99');scene.remove(o.mesh);obstacles.splice(i,1);shakeTime=.15;continue;}gameOver();return;}if(dzz<.8&&dzz>.35&&dxx<1.1&&!o.missed){o.missed=true;nearMisses++;score+=25;combo++;if(combo>maxCombo)maxCombo=combo;showPopup('+25 CLOSE!','#ff9933');shakeTime=.08;}}
   for(const c of coinObjs){if(c.collected)continue;const dx=px-c.mesh.position.x,dy=(py+.8)-c.mesh.position.y,dz=pz-c.mesh.position.z;if(dx*dx+dy*dy+dz*dz<(puMagnet>0?2.5:1.5)){c.collected=true;const val=puDouble>0?2:1;coins+=val;totalCoins+=val;combo++;if(combo>maxCombo)maxCombo=combo;score+=10*val*(1+Math.floor(combo/5));spawnParts(c.mesh.position.clone(),0xffd700,3);if(combo>0&&combo%10===0)showPopup(combo+'x COMBO!','#ff6b35');}}
   for(let i=powerupObjs.length-1;i>=0;i--){const p=powerupObjs[i];const dx=px-p.position.x,dy=(py+.8)-p.position.y,dz=pz-p.position.z;if(dx*dx+dy*dy+dz*dz<2){const type=p.userData.type;if(type==='magnet'){puMagnet=8;showPopup('MAGNET!','#6699ff');}else if(type==='shield'){puShield=true;showPopup('SHIELD!','#66ff99');flash('rgba(100,255,150,.2)');}else if(type==='speed'){puSpeed=6;showPopup('SPEED BOOST!','#ff9933');}else if(type==='double'){puDouble=10;showPopup('2x COINS!','#ffd700');flash('rgba(255,215,0,.15)');}spawnParts(p.position.clone(),0xffffff,5);scene.remove(p);powerupObjs.splice(i,1);}}
-  cam.position.x=playerX*.3+shX;cam.position.y+=((2.8+py*.4)-cam.position.y)*4*dt;cam.position.y+=shY;
-  cam.position.z=4;cam.lookAt(px*.15,1.0,-12);
+  cam.position.x+=(playerX*.75-cam.position.x)*6*dt;cam.position.x+=shX;
+  cam.position.y+=((2.8+py*.4)-cam.position.y)*4*dt;cam.position.y+=shY;
+  cam.position.z=4;cam.lookAt(playerX*.4,1.0,-12);
   el('scoreEl').textContent=score;el('coinsEl').textContent=coins;el('comboEl').textContent=combo>=3?combo+'x COMBO':'';
   if(distance>50)el('hint').style.display='none';
 }
