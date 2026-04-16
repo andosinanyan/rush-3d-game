@@ -329,11 +329,11 @@ async function init(){
   try{
     scene=new THREE.Scene();
     scene.background=new THREE.Color(0x6aafe6);
-    scene.fog=new THREE.Fog(0x8ec8a0,20,120);
+    scene.fog=new THREE.Fog(0x8ec8a0,30,140);
     cam=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,1,200);cam.position.set(0,2.8,4.5);
     const canvas=el('gameCanvas');
     renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance',alpha:false});
-    renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(devicePixelRatio);
     renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
     renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.85;
     renderer.outputEncoding=THREE.sRGBEncoding;
