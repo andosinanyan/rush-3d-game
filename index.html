@@ -46,6 +46,7 @@ canvas#gameCanvas{display:block;position:fixed;inset:0;width:100%!important;heig
 <div id="hint">SWIPE LEFT / RIGHT &middot; UP TO JUMP &middot; DOWN TO SLIDE</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
 (function(){
 'use strict';
@@ -139,6 +140,8 @@ function makePU(type){
 }
 
 // CHARACTER
+let mixer=null,runAction=null,idleAction=null,currentAction=null,soldierLoaded=false;
+
 function createCharacter(){
   const g=new THREE.Group(),p={};
   function box(w,h,d,mat,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x||0,y||0,z||0);m.castShadow=true;return m;}
@@ -189,6 +192,45 @@ function animChar(dt){
   }
   if(isSliding){playerGroup.scale.y=.42;playerGroup.position.y=0;}
   else{playerGroup.scale.y+=(1-playerGroup.scale.y)*10*dt;}
+}
+
+// SOLDIER MODEL LOADER
+async function loadSoldier(){
+  try{
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),10000); // 10s timeout
+    const resp=await fetch('Soldier.glb',{signal:controller.signal});
+    clearTimeout(timeout);
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const chunks=[];const reader=resp.body.getReader();
+    while(true){const{done,value}=await reader.read();if(done)break;chunks.push(value);}
+    const buffer=await new Blob(chunks).arrayBuffer();
+    const loader=new THREE.GLTFLoader();
+    loader.parse(buffer,'',function(gltf){
+      while(playerGroup.children.length>0)playerGroup.remove(playerGroup.children[0]);
+      const model=gltf.scene;model.scale.set(1,1,1);model.rotation.y=0;
+      model.traverse(function(o){if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+      playerGroup.add(model);
+      mixer=new THREE.AnimationMixer(model);
+      for(const clip of gltf.animations){
+        const name=clip.name.toLowerCase();
+        if(name.includes('idle'))idleAction=mixer.clipAction(clip);
+        else if(name.includes('run'))runAction=mixer.clipAction(clip);
+      }
+      if(!idleAction&&gltf.animations[0])idleAction=mixer.clipAction(gltf.animations[0]);
+      if(!runAction&&gltf.animations[1])runAction=mixer.clipAction(gltf.animations[1]);
+      [idleAction,runAction].forEach(a=>{if(a){a.play();a.setEffectiveWeight(0);}});
+      if(idleAction)idleAction.setEffectiveWeight(1);
+      currentAction=idleAction;soldierLoaded=true;charParts=null;
+      console.log('Soldier loaded!',gltf.animations.map(a=>a.name));
+    },function(err){console.warn('GLB parse error:',err);});
+  }catch(e){console.warn('Soldier load skipped:',e.message);}
+}
+function crossFade(action,dur){
+  if(!mixer||!action||currentAction===action)return;
+  action.reset();action.setEffectiveWeight(1);action.setEffectiveTimeScale(1);
+  if(currentAction)currentAction.crossFadeTo(action,dur,true);
+  action.play();currentAction=action;
 }
 
 // SEGMENTS
@@ -301,12 +343,14 @@ function startGame(){
   combo=0;maxCombo=0;nearMisses=0;totalCoins=0;lastMilestone=0;
   playerGroup.position.set(0,0,0);playerGroup.rotation.set(0,0,0);playerGroup.scale.set(1,1,1);
   buildTrack();for(let i=3;i<VS;i++)spawnObs(-i*SL);
+  if(runAction)crossFade(runAction,.25);
   el('overlay').classList.add('hidden');el('hud').style.display='block';
   el('hint').style.display='block';el('endInfo').style.display='none';
   gameRunning=true;clock.start();
 }
 function gameOver(){
   gameRunning=false;flash('rgba(255,30,30,.3)');
+  if(idleAction)crossFade(idleAction,.35);
   spawnParts(playerGroup.position.clone().add(new THREE.Vector3(0,1,0)),0xff3322,10);
   if(score>bestScore){bestScore=score;try{localStorage.setItem('rushBest',String(bestScore))}catch(e){}}
   setTimeout(()=>{
@@ -325,6 +369,12 @@ function animate(){
     const dt=Math.min(clock.getDelta(),.05);
     if(gameRunning)update(dt);
     animChar(dt);
+    // Mixer for soldier animations
+    if(mixer){
+      mixer.update(dt);
+      if(soldierLoaded&&playerGroup.children[0]){playerGroup.children[0].position.x=0;playerGroup.children[0].position.z=0;}
+      if(runAction&&currentAction===runAction)runAction.setEffectiveTimeScale(Math.min(speed/BSPD*.85,2.2));
+    }
     // Particles
     for(let i=particles.length-1;i>=0;i--){
       const p=particles[i];
@@ -439,6 +489,8 @@ function init(){
     scene.add(new THREE.HemisphereLight(0x88cc88,0x2a1a0a,.4));
     playerGroup=createCharacter();
     playerGroup.position.set(0,0,0);scene.add(playerGroup);
+    // Load soldier model in background (won't block rendering)
+    loadSoldier();
     addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
     setupTouch();setupKeys();
     el('startBtn').addEventListener('click',startGame);
