@@ -9,6 +9,8 @@
 <meta name="theme-color" content="#87CEEB">
 <title>RUSH 3D</title>
 <link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
@@ -360,6 +362,8 @@ async function init(){
   }catch(e){console.error('Init failed:',e);document.body.innerHTML='<div style="color:red;padding:20px;font-size:16px">Error: '+e.message+'</div>';}
 }
 init();
+// Register service worker for PWA
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').then(()=>console.log('SW registered')).catch(e=>console.warn('SW failed',e));}
 })();
 </script>
 </body>
