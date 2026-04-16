@@ -59,7 +59,7 @@ const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 function el(id){return document.getElementById(id)}
 
 // CONFIG
-const LW=2.2,LANES=[-LW,0,LW],SL=16,VS=isMobile?14:18,BSPD=14,MSPD=36,GRAV=-40,JFORCE=15.5,SDUR=500,SINC=.18;
+const LW=2.2,LANES=[-LW,0,LW],SL=16,VS=18,BSPD=14,MSPD=36,GRAV=-40,JFORCE=15.5,SDUR=500,SINC=.18;
 
 // STATE
 let scene,cam,renderer,clock,gameRunning=false,score=0,coins=0,bestScore=0,speed=BSPD,playerLane=1;
@@ -75,13 +75,36 @@ const coinPool=[];
 let mG,mBk,mLf,mLd,mRk,mCr,mCn,mBr,mBd,mBo,mSk,mBt,mBl;
 
 function initMaterials(){
-  // Simple color materials for mobile compatibility (no canvas textures that might fail)
-  mG=new THREE.MeshStandardMaterial({color:0x2a5519,roughness:.85});
-  mBk=new THREE.MeshStandardMaterial({color:0x3a2510,roughness:.82});
+  function cTex(fn,w,h){const c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;}
+  const gTex=cTex((x,w,h)=>{
+    x.fillStyle='#2a5519';x.fillRect(0,0,w,h);
+    for(let i=0;i<3000;i++){x.fillStyle=`hsla(${88+Math.random()*40},${35+Math.random()*30}%,${14+Math.random()*22}%,${.25+Math.random()*.35})`;x.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*3,2+Math.random()*5);}
+    const pw=200,po=(w-pw)/2;
+    x.fillStyle='rgba(62,42,25,.75)';x.fillRect(po,0,pw,h);
+    x.fillStyle='rgba(72,50,30,.45)';x.fillRect(po+15,0,pw-30,h);
+    for(let i=0;i<800;i++){const v=38+Math.random()*45;x.fillStyle=`rgba(${v+15},${v},${v-10},${.15+Math.random()*.2})`;x.fillRect(po+Math.random()*pw,Math.random()*h,1+Math.random()*3,1+Math.random()*2);}
+  },512,512);
+  const bTex=cTex((x,w,h)=>{
+    x.fillStyle='#3a2510';x.fillRect(0,0,w,h);
+    for(let i=0;i<150;i++){x.fillStyle=`rgba(${25+Math.random()*30},${18+Math.random()*18},${8+Math.random()*10},${.35+Math.random()*.35})`;x.fillRect(Math.random()*w,Math.random()*h,2+Math.random()*5,1+Math.random()*2);}
+  },64,128);
+  const crTex=cTex((x,w,h)=>{
+    x.fillStyle='#7a5c2e';x.fillRect(0,0,w,h);
+    for(let i=0;i<200;i++){x.fillStyle=`rgba(${85+Math.random()*50},${55+Math.random()*40},${18+Math.random()*20},${.15+Math.random()*.2})`;x.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*6,1);}
+    x.strokeStyle='rgba(40,25,10,.4)';x.lineWidth=2;
+    [0,32,64,96,128].forEach(y=>{x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke();});
+    [0,64,128].forEach(xx=>{x.beginPath();x.moveTo(xx,0);x.lineTo(xx,h);x.stroke();});
+  },128,128);
+  const rkTex=cTex((x,w,h)=>{
+    x.fillStyle='#666';x.fillRect(0,0,w,h);
+    for(let i=0;i<200;i++){const v=35+Math.random()*65;x.fillStyle=`rgba(${v},${v-2},${v-5},${.25+Math.random()*.3})`;x.fillRect(Math.random()*w,Math.random()*h,2+Math.random()*5,2+Math.random()*4);}
+  },64,64);
+  mG=new THREE.MeshStandardMaterial({map:gTex,roughness:.85});
+  mBk=new THREE.MeshStandardMaterial({map:bTex,roughness:.82});
   mLf=new THREE.MeshStandardMaterial({color:0x2d7a1e,roughness:.6,side:THREE.DoubleSide});
   mLd=new THREE.MeshStandardMaterial({color:0x1a5a12,roughness:.65,side:THREE.DoubleSide});
-  mRk=new THREE.MeshStandardMaterial({color:0x666666,roughness:.8,metalness:.08});
-  mCr=new THREE.MeshStandardMaterial({color:0x7a5c2e,roughness:.7});
+  mRk=new THREE.MeshStandardMaterial({map:rkTex,roughness:.8,metalness:.08});
+  mCr=new THREE.MeshStandardMaterial({map:crTex,roughness:.7});
   mCn=new THREE.MeshStandardMaterial({color:0xffd700,emissive:0xcc8800,emissiveIntensity:.3,metalness:.85,roughness:.15});
   mBr=new THREE.MeshStandardMaterial({color:0x5a3510,roughness:.7});
   mBd=new THREE.MeshStandardMaterial({color:0x555555,metalness:.6,roughness:.35});
@@ -89,19 +112,18 @@ function initMaterials(){
   mSk=new THREE.MeshStandardMaterial({color:0xddb88a,roughness:.65});
   mBt=new THREE.MeshStandardMaterial({color:0x2a1a0a,roughness:.7});
   mBl=new THREE.MeshStandardMaterial({color:0x8B6914,roughness:.6,metalness:.2});
-  // Add path material
-  mG._path=new THREE.MeshStandardMaterial({color:0x4a3020,roughness:.8});
+  mG._path=new THREE.MeshStandardMaterial({color:0x4a3020,roughness:.8,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
 }
 
 // ENVIRONMENT
 function makeTree(big){
   const g=new THREE.Group();
   const h=big?(3+Math.random()*2.5):(1.8+Math.random()*1.5);
-  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(big?.1:.06,big?.18:.12,h,isMobile?5:6),mBk);
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(big?.1:.06,big?.18:.12,h,6),mBk);
   trunk.position.y=h/2;trunk.castShadow=true;g.add(trunk);
-  for(let i=0;i<(big?3:2);i++){
+  for(let i=0;i<(big?4:2);i++){
     const cr=big?(.55+Math.random()*.6):(.3+Math.random()*.35);
-    const leaf=new THREE.Mesh(new THREE.IcosahedronGeometry(cr,isMobile?0:1),Math.random()>.4?mLf:mLd);
+    const leaf=new THREE.Mesh(new THREE.IcosahedronGeometry(cr,1),Math.random()>.4?mLf:mLd);
     leaf.position.set((Math.random()-.5)*(big?.5:.25),h-.2+Math.random()*(big?.9:.5),(Math.random()-.5)*(big?.5:.25));
     leaf.scale.y=.5+Math.random()*.25;leaf.castShadow=true;g.add(leaf);
   }
@@ -239,8 +261,8 @@ function makeSeg(wz){
   const gnd=new THREE.Mesh(new THREE.PlaneGeometry(30,SL+1),mG);
   gnd.rotation.x=-Math.PI/2;gnd.position.y=-.02;gnd.receiveShadow=true;g.add(gnd);
   const path=new THREE.Mesh(new THREE.PlaneGeometry(5.5,SL+1),mG._path);
-  path.rotation.x=-Math.PI/2;path.position.y=-.01;g.add(path);
-  const treeStep=isMobile?3:2;
+  path.rotation.x=-Math.PI/2;path.position.y=.01;g.add(path);
+  const treeStep=2;
   for(let i=0;i<SL;i+=treeStep+Math.random()*1.5){
     [-1,1].forEach(side=>{
       if(Math.random()>.2){const t=makeTree(true);t.position.set(side*(5+Math.random()*3),0,-SL/2+i);g.add(t);}
@@ -467,20 +489,20 @@ function init(){
     scene=new THREE.Scene();
     scene.background=new THREE.Color(0x0e1e0e);
     scene.fog=new THREE.FogExp2(0x1a2e1a,.013);
-    cam=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.1,200);
+    cam=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.5,200);
     cam.position.set(0,3.8,9);
     const canvas=el('gameCanvas');
-    renderer=new THREE.WebGLRenderer({canvas,antialias:!isMobile,powerPreference:'high-performance',alpha:false});
+    renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance',alpha:false,logarithmicDepthBuffer:true});
     renderer.setSize(innerWidth,innerHeight);
-    renderer.setPixelRatio(Math.min(devicePixelRatio,isMobile?1.5:2));
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
     renderer.shadowMap.enabled=true;
-    renderer.shadowMap.type=isMobile?THREE.BasicShadowMap:THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type=THREE.PCFSoftShadowMap;
     clock=new THREE.Clock();
     initMaterials();
     scene.add(new THREE.AmbientLight(0x446644,.55));
     const sun=new THREE.DirectionalLight(0xfff4dd,1.5);
     sun.position.set(6,18,8);sun.castShadow=true;
-    const sm=isMobile?512:2048;
+    const sm=2048;
     sun.shadow.mapSize.set(sm,sm);
     sun.shadow.camera.near=1;sun.shadow.camera.far=60;
     sun.shadow.camera.left=-15;sun.shadow.camera.right=15;
